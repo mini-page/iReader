@@ -1,8 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ireader/core/providers/app_providers.dart';
 import '../domain/bookmark.dart';
-import '../data/bookmark_repository.dart';
-
-final bookmarkRepositoryProvider = Provider((ref) => BookmarkRepository());
 
 final bookmarksProvider = AsyncNotifierProvider<BookmarksNotifier, List<Bookmark>>(BookmarksNotifier.new);
 

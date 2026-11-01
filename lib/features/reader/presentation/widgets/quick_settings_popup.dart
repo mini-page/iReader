@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_mlkit_translation/google_mlkit_translation.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
-import 'package:red_reader/features/settings/presentation/settings_controller.dart';
-import 'package:red_reader/features/settings/presentation/settings_screen.dart';
-import 'package:red_reader/features/reader/presentation/reader_controller.dart';
-import 'package:red_reader/core/services/ai_service.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
+import 'package:ireader/core/providers/app_providers.dart';
+import 'package:ireader/features/settings/presentation/settings_controller.dart';
+import 'package:ireader/features/settings/presentation/settings_screen.dart';
+import 'package:ireader/features/reader/presentation/reader_controller.dart';
+import 'package:ireader/core/services/ai_service.dart';
 
 class QuickSettingsPopup extends ConsumerWidget {
   final Future<void> Function(Future<String> Function(AIProvider p) action) onRunTransform;
+  static const Map<String, TranslateLanguage> _translationLanguages = {
+    'Spanish': TranslateLanguage.spanish,
+    'French': TranslateLanguage.french,
+    'German': TranslateLanguage.german,
+    'Chinese': TranslateLanguage.chinese,
+    'Japanese': TranslateLanguage.japanese,
+    'Hindi': TranslateLanguage.hindi,
+  };
 
   const QuickSettingsPopup({super.key, required this.onRunTransform});
 
@@ -79,13 +89,13 @@ class QuickSettingsPopup extends ConsumerWidget {
                       scrollDirection: Axis.horizontal,
                       children: [
                         _buildAiActionItem(
-                          icon: LucideIcons.fileText,
+                          icon: LucideIcons.file_text,
                           label: 'Summarize',
                           onTap: () => onRunTransform((p) => p.summarize(readerState.content)),
                           onSurface: onSurface,
                         ),
                         _buildAiActionItem(
-                          icon: LucideIcons.wand2,
+                          icon: LucideIcons.wand,
                           label: 'Simplify',
                           onTap: () => onRunTransform((p) => p.simplify(readerState.content)),
                           onSurface: onSurface,
@@ -93,7 +103,7 @@ class QuickSettingsPopup extends ConsumerWidget {
                         _buildAiActionItem(
                           icon: LucideIcons.languages,
                           label: 'Translate',
-                          onTap: () => _showLanguagePicker(context, readerState, onSurface, cardColor),
+                          onTap: () => _showLanguagePicker(context, ref, readerState, onSurface, cardColor),
                           onSurface: onSurface,
                         ),
                       ],
@@ -114,7 +124,7 @@ class QuickSettingsPopup extends ConsumerWidget {
                       ),
                       const SizedBox(width: 12),
                       _buildModeToggle(
-                        icon: LucideIcons.alignLeft,
+                        icon: LucideIcons.align_start_horizontal,
                         label: 'Scroll',
                         isSelected: readerState.mode == ReadingMode.scroll,
                         onTap: () => readerCtrl.setMode(ReadingMode.scroll),
@@ -404,8 +414,8 @@ class QuickSettingsPopup extends ConsumerWidget {
     );
   }
 
-  void _showLanguagePicker(BuildContext context, ReaderState state, Color onSurface, Color cardColor) {
-    final languages = ['Spanish', 'French', 'German', 'Chinese', 'Japanese', 'Hindi'];
+  void _showLanguagePicker(BuildContext context, WidgetRef ref, ReaderState state, Color onSurface, Color cardColor) {
+    final readerCtrl = ref.read(readerProvider.notifier);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -416,14 +426,27 @@ class QuickSettingsPopup extends ConsumerWidget {
         ),
         child: ListView.builder(
           shrinkWrap: true,
-          itemCount: languages.length,
-          itemBuilder: (context, i) => ListTile(
-            title: Text(languages[i], style: TextStyle(color: onSurface)),
-            onTap: () {
-              Navigator.pop(context);
-              onRunTransform((p) => p.translate(state.content, languages[i]));
-            },
-          ),
+          itemCount: _translationLanguages.length,
+          itemBuilder: (context, i) {
+            final entry = _translationLanguages.entries.elementAt(i);
+            return ListTile(
+              title: Text(entry.key, style: TextStyle(color: onSurface)),
+              onTap: () async {
+                Navigator.pop(context);
+                final error = await readerCtrl.transformWithResult(
+                  () => ref.read(translationServiceProvider).translate(
+                        state.content,
+                        target: entry.value,
+                      ),
+                );
+                if (context.mounted && error != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(error)),
+                  );
+                }
+              },
+            );
+          },
         ),
       ),
     );

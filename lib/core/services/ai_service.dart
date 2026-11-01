@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'secure_storage_service.dart';
 import 'wikipedia_service.dart';
 
@@ -117,26 +116,24 @@ class GeminiClient implements AIProvider {
 
   @override
   Future<String> fetchWikipedia(String title) async {
-    final fullContent = await _wikiService.fetchFullContent(title);
-    if (fullContent.isNotEmpty) {
-      return fullContent;
+    final result = await _wikiService.fetchFullContent(title);
+    if (result.isSuccess) {
+      return result.requireData;
     }
-    throw Exception('Failed to fetch Wikipedia article.');
+    throw Exception(result.failure?.message ?? 'Failed to fetch Wikipedia article.');
   }
 }
 
 class AIService {
-  final Ref _ref;
-  AIService(this._ref);
+  final SecureStorageService _storage;
+
+  AIService(this._storage);
 
   Future<AIProvider?> getProvider() async {
-    final storage = _ref.read(secureStorageProvider);
-    final geminiKey = await storage.getGeminiKey();
+    final geminiKey = await _storage.getGeminiKey();
     if (geminiKey != null && geminiKey.isNotEmpty) {
       return GeminiClient(geminiKey);
     }
     return null;
   }
 }
-
-final aiServiceProvider = Provider((ref) => AIService(ref));

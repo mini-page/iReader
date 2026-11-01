@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:red_reader/features/reader/domain/reader_engine.dart';
+import 'package:ireader/features/reader/domain/reader_engine.dart';
 
 void main() {
   test('orp index rules', () {

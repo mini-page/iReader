@@ -1,6 +1,6 @@
 {
-    "name": "red_reader",
-    "short_name": "red_reader",
+    "name": "iReader",
+    "short_name": "iReader",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -1,8 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../library/data/session_repository.dart';
+import 'package:ireader/core/providers/app_providers.dart';
 import '../../../shared/models/session.dart';
-
-final sessionRepositoryProvider = Provider<SessionRepository>((ref) => SessionRepository());
 
 final sessionsProvider = AsyncNotifierProvider<SessionsNotifier, List<Session>>(SessionsNotifier.new);
 

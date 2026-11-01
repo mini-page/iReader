@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:go_router/go_router.dart';
 import '../bookmarks_provider.dart';
 import '../../domain/bookmark.dart';
@@ -144,40 +143,55 @@ class _BookmarksSectionState extends ConsumerState<BookmarksSection> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: onSurface.withValues(alpha: 0.05)),
       ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          title: Text(
-            title,
-            style: TextStyle(color: onSurface, fontWeight: FontWeight.bold, fontSize: 14),
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: Text(
-            '${bookmarks.length} word${bookmarks.length > 1 ? 's' : ''}',
-            style: TextStyle(color: onSurface.withValues(alpha: 0.4), fontSize: 12),
-          ),
-          childrenPadding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-          expandedAlignment: Alignment.topLeft,
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: bookmarks.map((b) => _buildBookmarkChip(context, b, onSurface)).toList(),
-            ),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => context.push('/bookmarks/$sessionId'),
-                icon: const Icon(LucideIcons.arrowRight, size: 14),
-                label: const Text('Review Session'),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFFFF3B3B),
-                  textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push('/bookmarks/$sessionId'),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(color: onSurface, fontWeight: FontWeight.bold, fontSize: 14),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${bookmarks.length} word${bookmarks.length > 1 ? 's' : ''}',
+                          style: TextStyle(color: onSurface.withValues(alpha: 0.4), fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(LucideIcons.chevron_right, size: 18, color: Color(0xFFFF3B3B)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 72, // Space for 2 rows of chips (approx 32 each) + spacing
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  clipBehavior: Clip.none,
+                  child: Wrap(
+                    direction: Axis.vertical,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: bookmarks.map((b) => _buildBookmarkChip(context, b, onSurface)).toList(),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -187,11 +201,13 @@ class _BookmarksSectionState extends ConsumerState<BookmarksSection> {
     return GestureDetector(
       onTap: () => context.push('/bookmarks/${b.sessionId}', extra: b),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: onSurface.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(12),
         ),
+        alignment: Alignment.center,
         child: Text(
           b.word,
           style: TextStyle(color: onSurface.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w500),

@@ -1,18 +1,18 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:uuid/uuid.dart';
 
-import 'package:red_reader/features/library/data/session_repository.dart';
-import 'package:red_reader/features/settings/presentation/settings_controller.dart';
-import 'package:red_reader/shared/models/session.dart';
-import 'package:red_reader/features/reader/domain/reader_engine.dart';
-import 'package:red_reader/core/services/ai_service.dart';
-import 'package:red_reader/features/stats/data/stats_repository.dart';
-import 'package:red_reader/features/bookmarks/presentation/bookmarks_provider.dart';
-import 'package:red_reader/features/bookmarks/data/bookmark_repository.dart';
-import 'package:red_reader/features/bookmarks/domain/bookmark.dart';
+import 'package:ireader/core/models/service_result.dart';
+import 'package:ireader/core/providers/app_providers.dart';
+import 'package:ireader/features/library/data/session_repository.dart';
+import 'package:ireader/features/settings/presentation/settings_controller.dart';
+import 'package:ireader/shared/models/session.dart';
+import 'package:ireader/features/reader/domain/reader_engine.dart';
+import 'package:ireader/core/services/ai_service.dart';
+import 'package:ireader/features/bookmarks/presentation/bookmarks_provider.dart';
+import 'package:ireader/features/bookmarks/data/bookmark_repository.dart';
+import 'package:ireader/features/bookmarks/domain/bookmark.dart';
 
 enum ReadingMode { rsvp, scroll }
 
@@ -71,6 +71,9 @@ class ReaderState {
 
   double get progress => tokens.isEmpty ? 0 : (index / tokens.length).clamp(0.0, 1.0);
 
+  int get totalDurationSeconds => (tokens.length / (wpm > 0 ? (wpm / 60) : 1)).round();
+  int get currentDurationSeconds => (index / (wpm > 0 ? (wpm / 60) : 1)).round();
+
   ReaderState copyWith({
     String? sessionId,
     String? title,
@@ -109,8 +112,6 @@ class ReaderState {
       );
 }
 
-final bookmarkRepositoryProvider = Provider((ref) => BookmarkRepository());
-
 class ReaderController extends Notifier<ReaderState> {
   final FlutterTts _tts = FlutterTts();
   final _uuid = const Uuid();
@@ -119,7 +120,11 @@ class ReaderController extends Notifier<ReaderState> {
 
   @override
   ReaderState build() {
-    final settings = ref.watch(settingsProvider);
+    final settings = ref.read(settingsProvider);
+    ref.onDispose(() {
+      _timer?.cancel();
+      _tts.stop();
+    });
     _initTts();
     return ReaderState(
       sessionId: '',
@@ -150,56 +155,59 @@ class ReaderController extends Notifier<ReaderState> {
   BookmarkRepository get _bookmarkRepo => ref.read(bookmarkRepositoryProvider);
   Timer? _timer;
   DateTime? _nextTickAt;
-Future<void> toggleBookmark([int? targetIndex]) async {
-  final idx = targetIndex ?? state.index;
-  if (idx < 0 || idx >= state.tokens.length) return;
 
-  final currentWord = state.tokens[idx].word;
-  final bookmarkId = '${state.sessionId}_$idx';
+  Future<void> toggleBookmark([int? targetIndex]) async {
+    final idx = targetIndex ?? state.index;
+    if (idx < 0 || idx >= state.tokens.length) return;
 
-  // Update local state immediately for snappy UI
-  final newBookmarks = Set<int>.from(state.bookmarks);
-  final isAdding = !newBookmarks.contains(idx);
+    final currentWord = state.tokens[idx].word;
+    final bookmarkId = '${state.sessionId}_$idx';
 
-  if (isAdding) {
-    newBookmarks.add(idx);
-  } else {
-    newBookmarks.remove(idx);
+    final newBookmarks = Set<int>.from(state.bookmarks);
+    final isAdding = !newBookmarks.contains(idx);
+
+    if (isAdding) {
+      newBookmarks.add(idx);
+    } else {
+      newBookmarks.remove(idx);
+    }
+    state = state.copyWith(bookmarks: newBookmarks);
+
+    if (isAdding) {
+      await _bookmarkRepo.add(Bookmark(
+        id: bookmarkId,
+        word: currentWord,
+        index: idx,
+        sessionId: state.sessionId,
+        sessionTitle: state.title,
+        createdAt: DateTime.now(),
+      ));
+    } else {
+      await _bookmarkRepo.delete(bookmarkId);
+    }
+
+    ref.invalidate(bookmarksProvider);
   }
-  state = state.copyWith(bookmarks: newBookmarks);
 
-  // Persist to repository in background
-  if (isAdding) {
-    await _bookmarkRepo.add(Bookmark(
-      id: bookmarkId,
-      word: currentWord,
-      index: idx,
-      sessionId: state.sessionId,
-      sessionTitle: state.title,
-      createdAt: DateTime.now(),
-    ));
-  } else {
-    await _bookmarkRepo.delete(bookmarkId);
+  Future<void> speakWords(String text) async {
+    await _tts.speak(text);
   }
 
-  // Refresh the global bookmarks provider for other screens
-  ref.invalidate(bookmarksProvider);
-}
-
-Future<void> speakWords(String text) async {
-  await _tts.speak(text);
-}
-
-  Future<void> loadText(String title, String content,
-      {int? start, int? wpm}) async {
+  Future<void> loadText(
+    String title,
+    String content, {
+    String? sessionId,
+    int? start,
+    int? wpm,
+  }) async {
     final paragraphs = paragraphize(content);
     final tokens = paragraphs.expand((p) => p.tokens).toList();
-    final id = _uuid.v4();
+    final id = sessionId ?? _uuid.v4();
     final settings = ref.read(settingsProvider);
-    
-    // Load existing bookmarks for this text (simple check by content hash or similar? for now text title)
-    // Actually, Text ID would be better.
-    
+    final bookmarks = sessionId == null
+        ? <int>{}
+        : (await _bookmarkRepo.bySession(id)).map((b) => b.index).toSet();
+
     state = state.copyWith(
       sessionId: id,
       title: title,
@@ -211,7 +219,7 @@ Future<void> speakWords(String text) async {
       chunkSize: settings.defaultChunkSize,
       isPlaying: false,
       isCompleted: false,
-      bookmarks: {},
+      bookmarks: bookmarks,
     );
     await _persist();
   }
@@ -260,6 +268,9 @@ Future<void> speakWords(String text) async {
     _sessionStartTime = DateTime.now();
     state = state.copyWith(isPlaying: true);
 
+    ref.read(audioHandlerProvider).updateMetadata(title: state.title, author: 'iReader');
+    ref.read(audioHandlerProvider).play();
+
     if (state.isAudioEnabled) {
       _speakCurrentParagraph();
     }
@@ -271,6 +282,7 @@ Future<void> speakWords(String text) async {
     if (state.isAudioEnabled) {
       await _tts.stop();
     }
+    ref.read(audioHandlerProvider).pause();
     
     if (_sessionStartTime != null && _wordsReadInCurrentSession > 0) {
       final duration = DateTime.now().difference(_sessionStartTime!).inSeconds;
@@ -313,7 +325,7 @@ Future<void> speakWords(String text) async {
     state = state.copyWith(chunkSize: size);
   }
 
-  Future<void> seekTo(double percent) async {
+  Future<void> seekTo(double percent, {bool persist = true}) async {
     final newIndex = (percent * (state.tokens.length - 1)).round().clamp(0, state.tokens.length - 1);
     final oldParaIndex = state.currentParagraphIndex;
     state = state.copyWith(index: newIndex, isCompleted: false);
@@ -322,10 +334,12 @@ Future<void> speakWords(String text) async {
       _tts.stop();
       _speakCurrentParagraph();
     }
-    await _persist();
+    if (persist) {
+      await _persist();
+    }
   }
 
-  Future<void> jumpToIndex(int i) async {
+  Future<void> jumpToIndex(int i, {bool persist = true}) async {
     final oldParaIndex = state.currentParagraphIndex;
     state = state.copyWith(index: i.clamp(0, state.tokens.length - 1), isCompleted: false);
     
@@ -333,7 +347,9 @@ Future<void> speakWords(String text) async {
       _tts.stop();
       _speakCurrentParagraph();
     }
-    await _persist();
+    if (persist) {
+      await _persist();
+    }
   }
 
   Future<String?> transform(Future<String> Function(AIProvider provider) action) async {
@@ -347,16 +363,8 @@ Future<void> speakWords(String text) async {
     try {
       final transformedText = await action(provider);
       if (transformedText.isNotEmpty) {
-        final paragraphs = paragraphize(transformedText);
-        state = state.copyWith(
-          content: transformedText,
-          tokens: paragraphs.expand((p) => p.tokens).toList(),
-          paragraphs: paragraphs,
-          index: 0,
-          isCompleted: false,
-          isLoadingAI: false,
-        );
-        await _persist();
+        await _applyTransformedContent(transformedText);
+        state = state.copyWith(isLoadingAI: false);
         return null;
       } else {
         state = state.copyWith(isLoadingAI: false);
@@ -365,6 +373,28 @@ Future<void> speakWords(String text) async {
     } catch (e) {
       state = state.copyWith(isLoadingAI: false);
       return e.toString().replaceAll("Exception: ", "");
+    }
+  }
+
+  Future<String?> transformWithResult(
+    Future<ServiceResult<String>> Function() action,
+  ) async {
+    if (state.isPlaying) await pause();
+    state = state.copyWith(isLoadingAI: true);
+
+    try {
+      final result = await action();
+      if (!result.isSuccess) {
+        state = state.copyWith(isLoadingAI: false);
+        return result.failure?.message ?? 'Transformation failed.';
+      }
+
+      await _applyTransformedContent(result.requireData);
+      state = state.copyWith(isLoadingAI: false);
+      return null;
+    } catch (e) {
+      state = state.copyWith(isLoadingAI: false);
+      return e.toString().replaceAll('Exception: ', '');
     }
   }
 
@@ -388,8 +418,15 @@ Future<void> speakWords(String text) async {
     jumpToIndex(state.index + count);
   }
 
-  Future<void> skipForward() async => skipWords(2);
-  Future<void> skipBackward() async => skipWords(-2);
+  Future<void> skipForward() async {
+    final wordsToSkip = (state.wpm / 60 * 10).round();
+    await skipWords(wordsToSkip);
+  }
+
+  Future<void> skipBackward() async {
+    final wordsToSkip = (state.wpm / 60 * 10).round();
+    await skipWords(-wordsToSkip);
+  }
 
   void _scheduleNextTick(Duration fromNow) {
     _timer?.cancel();
@@ -444,7 +481,30 @@ Future<void> speakWords(String text) async {
       updatedAt: DateTime.now(),
     ));
   }
+
+  Future<void> _applyTransformedContent(String transformedText) async {
+    await _clearBookmarksForCurrentSession();
+    final paragraphs = paragraphize(transformedText);
+    state = state.copyWith(
+      content: transformedText,
+      tokens: paragraphs.expand((p) => p.tokens).toList(),
+      paragraphs: paragraphs,
+      index: 0,
+      isCompleted: false,
+      bookmarks: {},
+    );
+    await _persist();
+  }
+
+  Future<void> _clearBookmarksForCurrentSession() async {
+    if (state.sessionId.isEmpty) return;
+    final bookmarks = await _bookmarkRepo.bySession(state.sessionId);
+    for (final bookmark in bookmarks) {
+      await _bookmarkRepo.delete(bookmark.id);
+    }
+    ref.invalidate(bookmarksProvider);
+  }
 }
 
-final sessionRepositoryProvider = Provider<SessionRepository>((ref) => SessionRepository());
-final readerProvider = NotifierProvider<ReaderController, ReaderState>(ReaderController.new);
+final readerProvider =
+    NotifierProvider<ReaderController, ReaderState>(ReaderController.new);

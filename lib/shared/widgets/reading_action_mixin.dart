@@ -1,19 +1,25 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:docx_to_text/docx_to_text.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
+import 'package:epubx/epubx.dart';
+import 'package:image/image.dart' as img;
 
-import 'package:red_reader/core/services/ai_service.dart';
-import 'package:red_reader/features/home/data/sessions_provider.dart';
-import 'package:red_reader/core/services/article_service.dart';
+import 'package:ireader/core/providers/app_providers.dart';
+import 'package:ireader/shared/utils/text_utils.dart';
+import 'package:ireader/core/services/ai_service.dart';
+import 'package:ireader/features/home/data/sessions_provider.dart';
+import 'package:ireader/features/library/data/books_provider.dart';
+import 'package:ireader/shared/models/book.dart';
 
 mixin ReadingActionMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   bool isProcessing = false;
   String processingLabel = 'EXTRACTING KNOWLEDGE';
-  final _articleService = ArticleService();
 
   void setProcessing(bool value, [String label = 'EXTRACTING KNOWLEDGE']) {
     if (mounted) {
@@ -72,43 +78,120 @@ mixin ReadingActionMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   }
 
   Future<void> pickFiles() async {
-    final result = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['txt', 'pdf', 'docx']);
-    if (result == null || result.files.single.path == null) return;
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom, 
+      allowedExtensions: ['txt', 'pdf', 'docx', 'epub'],
+      allowMultiple: true,
+    );
+    if (result == null || result.files.isEmpty) return;
 
-    setProcessing(true, 'EXTRACTING FILE');
-    final file = File(result.files.single.path!);
-    final extension = result.files.single.extension?.toLowerCase();
-    String content = '';
-    // Strip extension from name
-    String title = result.files.single.name;
-    if (title.contains('.')) {
-      title = title.substring(0, title.lastIndexOf('.'));
-    }
+    setProcessing(true, 'EXTRACTING FILES');
+    
+    final sessionRepo = ref.read(sessionRepositoryProvider);
+    final bookRepo = ref.read(bookRepositoryProvider);
+    final existingSessions = await sessionRepo.all();
+    final existingBooks = await bookRepo.all();
+    
+    int addedCount = 0;
+    int duplicateCount = 0;
 
-    try {
-      if (extension == 'txt') {
-        content = await file.readAsString();
-      } else if (extension == 'pdf') {
-        final PdfDocument document = PdfDocument(inputBytes: await file.readAsBytes());
-        content = PdfTextExtractor(document).extractText();
-        document.dispose();
-      } else if (extension == 'docx') {
-        content = docxToText(await file.readAsBytes());
+    for (final pickedFile in result.files) {
+      if (pickedFile.path == null) continue;
+      final file = File(pickedFile.path!);
+      final extension = pickedFile.extension?.toLowerCase();
+      String title = pickedFile.name;
+      if (title.contains('.')) {
+        title = title.substring(0, title.lastIndexOf('.'));
       }
-    } catch (e) {
-      if (mounted) _showThemedSnackBar('File Error: $e', isError: true);
+
+      try {
+        if (extension == 'epub') {
+          final isDuplicate = existingBooks.any((b) => b.title == title);
+          if (isDuplicate) {
+            duplicateCount++;
+            continue;
+          }
+
+          final bytes = await file.readAsBytes();
+          final epubBook = await EpubReader.readBook(bytes);
+          
+          List<BookChapter> chapters = [];
+          void extractChapters(List<EpubChapter> epubChapters) {
+            for (var chapter in epubChapters) {
+              if (chapter.HtmlContent != null && chapter.HtmlContent!.trim().isNotEmpty) {
+                chapters.add(BookChapter(
+                  title: chapter.Title ?? 'Untitled Chapter',
+                  content: stripHtml(chapter.HtmlContent!),
+                ));
+              }
+              if (chapter.SubChapters != null && chapter.SubChapters!.isNotEmpty) {
+                extractChapters(chapter.SubChapters!);
+              }
+            }
+          }
+          
+          extractChapters(epubBook.Chapters ?? []);
+
+          if (chapters.isNotEmpty) {
+            final newBook = Book(
+              id: const Uuid().v4(),
+              title: epubBook.Title ?? title,
+              author: epubBook.Author ?? 'Unknown',
+              cover: epubBook.CoverImage != null ? Uint8List.fromList(img.encodePng(epubBook.CoverImage!)) : null,
+              chapters: chapters,
+              updatedAt: DateTime.now(),
+            );
+            await bookRepo.create(newBook);
+            addedCount++;
+          }
+          continue;
+        }
+
+        String content = '';
+        if (extension == 'txt') {
+          content = await file.readAsString();
+        } else if (extension == 'pdf') {
+          final PdfDocument document = PdfDocument(inputBytes: await file.readAsBytes());
+          content = PdfTextExtractor(document).extractText();
+          document.dispose();
+        } else if (extension == 'docx') {
+          content = docxToText(await file.readAsBytes());
+        }
+
+        if (content.trim().isNotEmpty) {
+          final isDuplicate = existingSessions.any((s) => s.title == title || s.content == content);
+          if (!isDuplicate) {
+            final newSession = await sessionRepo.create(
+              title: title,
+              content: content,
+              wpm: 250,
+            );
+            existingSessions.add(newSession);
+            addedCount++;
+          } else {
+            duplicateCount++;
+          }
+        }
+      } catch (e) {
+        if (mounted) _showThemedSnackBar('File Error ($title): $e', isError: true);
+        continue;
+      }
     }
 
     setProcessing(false);
-    if (content.trim().isNotEmpty && mounted) {
-      context.push('/preview', extra: {'title': title, 'content': content, 'id': null});
-      
-      // Use post frame to avoid element list conflict
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ref.read(sessionsProvider.notifier).refresh();
-        }
-      });
+    
+    if (mounted) {
+      if (addedCount > 0) {
+        _showThemedSnackBar('Imported $addedCount new file(s) to library. ${duplicateCount > 0 ? '($duplicateCount duplicates ignored)' : ''}');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ref.invalidate(sessionsProvider);
+            ref.invalidate(booksProvider);
+          }
+        });
+      } else {
+        _showThemedSnackBar('No new files imported ($duplicateCount duplicates ignored).');
+      }
     }
   }
 
@@ -141,7 +224,7 @@ mixin ReadingActionMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       title: 'Wikipedia Fetcher',
       hint: 'Article title...',
       actionLabel: 'Fetch',
-      onConfirm: (val) => handleAiAction((p) => p.fetchWikipedia(val), 'ACCESSING KNOWLEDGE'),
+      onConfirm: (val) => fetchWikipediaArticle(val),
     );
   }
 
@@ -157,17 +240,53 @@ mixin ReadingActionMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   Future<void> extractAndRead(String url) async {
     setProcessing(true, 'PARSING WEBPAGE');
     try {
-      final article = await _articleService.extractFromUrl(url);
-      if (article != null && article.content.trim().isNotEmpty) {
+      final articleResult =
+          await ref.read(articleServiceProvider).extractFromUrl(url);
+      if (articleResult.isSuccess) {
+        final article = articleResult.requireData;
         if (mounted) {
           context.push('/preview', extra: {'title': article.title, 'content': article.content, 'id': null});
           ref.invalidate(sessionsProvider);
         }
       } else {
-        if (mounted) _showThemedSnackBar('Could not extract main content from this URL.', isError: true);
+        if (mounted) {
+          _showThemedSnackBar(
+            articleResult.failure?.message ??
+                'Could not extract main content from this URL.',
+            isError: true,
+          );
+        }
       }
     } catch (e) {
       if (mounted) _showThemedSnackBar('Network/Parsing Error: $e', isError: true);
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  Future<void> fetchWikipediaArticle(String title) async {
+    setProcessing(true, 'ACCESSING KNOWLEDGE');
+    try {
+      final result = await ref.read(wikipediaServiceProvider).fetchFullContent(title);
+      if (result.isSuccess) {
+        if (mounted) {
+          context.push('/preview', extra: {
+            'title': title,
+            'content': result.requireData,
+            'id': null,
+          });
+          ref.invalidate(sessionsProvider);
+        }
+      } else if (mounted) {
+        _showThemedSnackBar(
+          result.failure?.message ?? 'Failed to fetch Wikipedia article.',
+          isError: true,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _showThemedSnackBar('Wikipedia Error: $e', isError: true);
+      }
     } finally {
       setProcessing(false);
     }

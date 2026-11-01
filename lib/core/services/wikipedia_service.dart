@@ -1,5 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:ireader/core/models/app_failure.dart';
+import 'package:ireader/core/models/service_result.dart';
+import 'package:ireader/shared/utils/text_utils.dart';
 
 class WikipediaArticle {
   final String title;
@@ -27,21 +30,31 @@ class WikipediaArticle {
 class WikipediaService {
   static const _baseUrl = 'https://en.wikipedia.org/api/rest_v1/page/summary';
 
-  Future<WikipediaArticle?> fetchSummary(String title) async {
+  Future<ServiceResult<WikipediaArticle>> fetchSummary(String title) async {
     try {
       final response = await http.get(Uri.parse('$_baseUrl/${Uri.encodeComponent(title)}'));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return WikipediaArticle.fromJson(data);
+        return ServiceResult.success(WikipediaArticle.fromJson(data));
       }
+      return ServiceResult.error(
+        AppFailure(
+          AppFailureType.network,
+          'Wikipedia request failed (${response.statusCode}).',
+        ),
+      );
     } catch (e) {
-      // Log error
+      return ServiceResult.error(
+        AppFailure(
+          AppFailureType.network,
+          'Wikipedia request failed: $e',
+        ),
+      );
     }
-    return null;
   }
 
   /// Fetches the full content using the mobile-sections endpoint for a complete reading session.
-  Future<String> fetchFullContent(String title) async {
+  Future<ServiceResult<String>> fetchFullContent(String title) async {
     try {
       // Using the mobile-sections endpoint to get more than just the summary
       final response = await http.get(Uri.parse(
@@ -49,11 +62,23 @@ class WikipediaService {
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final leadSection = data['lead']['sections'][0]['text'] as String;
-        final remainingSections = data['remaining']['sections'] as List;
+        final lead = data['lead'] as Map<String, dynamic>?;
+        final leadSections = lead?['sections'] as List<dynamic>?;
+        if (leadSections == null || leadSections.isEmpty) {
+          final summary = await fetchSummary(title);
+          if (summary.isSuccess && summary.requireData.extract.isNotEmpty) {
+            return ServiceResult.success(summary.requireData.extract);
+          }
+          return ServiceResult.error(
+            const AppFailure(AppFailureType.parsing, 'Wikipedia article has no lead section.'),
+          );
+        }
+        final leadSection = leadSections[0]['text'] as String? ?? '';
+        final remaining = data['remaining'] as Map<String, dynamic>?;
+        final remainingSections = remaining?['sections'] as List<dynamic>? ?? [];
         
         StringBuffer fullText = StringBuffer();
-        fullText.writeln(_stripHtml(leadSection));
+        fullText.writeln(stripHtml(leadSection));
         
         for (var section in remainingSections) {
           final sectionTitle = section['line'] ?? '';
@@ -61,22 +86,37 @@ class WikipediaService {
           if (sectionTitle.isNotEmpty) {
             fullText.writeln('\n\n$sectionTitle\n');
           }
-          fullText.writeln(_stripHtml(sectionText));
+          fullText.writeln(stripHtml(sectionText));
         }
         
-        return fullText.toString();
+        final text = fullText.toString().trim();
+        if (text.isNotEmpty) {
+          return ServiceResult.success(text);
+        }
       }
     } catch (e) {
-      // Fallback to summary if full fetch fails
+      final summary = await fetchSummary(title);
+      if (summary.isSuccess && summary.requireData.extract.isNotEmpty) {
+        return ServiceResult.success(summary.requireData.extract);
+      }
+      return ServiceResult.error(
+        AppFailure(
+          AppFailureType.network,
+          'Wikipedia fetch failed: $e',
+        ),
+      );
     }
-    
+
     final summary = await fetchSummary(title);
-    return summary?.extract ?? '';
+    if (summary.isSuccess && summary.requireData.extract.isNotEmpty) {
+      return ServiceResult.success(summary.requireData.extract);
+    }
+    return ServiceResult.error(
+      const AppFailure(
+        AppFailureType.parsing,
+        'Wikipedia article returned no readable content.',
+      ),
+    );
   }
 
-  String _stripHtml(String html) {
-    // Basic HTML stripping for clean text ingestion
-    RegExp exp = RegExp(r"<[^>]*>", multiLine: true, caseSensitive: true);
-    return html.replaceAll(exp, '').replaceAll('&nbsp;', ' ').trim();
-  }
 }

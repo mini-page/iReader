@@ -1,5 +1,4 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class SecureStorageService {
   final _storage = const FlutterSecureStorage();
@@ -19,5 +18,3 @@ class SecureStorageService {
 
   Future<void> deleteAll() async => await _storage.deleteAll();
 }
-
-final secureStorageProvider = Provider((ref) => SecureStorageService());

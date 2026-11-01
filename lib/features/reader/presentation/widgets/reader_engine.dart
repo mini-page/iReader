@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import '../reader_controller.dart';
 import 'reader_widgets.dart';
 
@@ -68,7 +68,7 @@ class ReaderEngineView extends ConsumerWidget {
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        state.showContext ? LucideIcons.eye : LucideIcons.eyeOff,
+                        state.showContext ? LucideIcons.eye : LucideIcons.eye_off,
                         color: state.showContext ? const Color(0xFFFF3B3B) : Colors.white30,
                         size: 18,
                       ),
@@ -200,7 +200,7 @@ class ReaderEngineView extends ConsumerWidget {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                state.isAudioEnabled ? LucideIcons.volume2 : LucideIcons.volumeX,
+                state.isAudioEnabled ? LucideIcons.volume_2 : LucideIcons.volume_x,
                 color: state.isAudioEnabled ? const Color(0xFFFF3B3B) : Colors.white24,
                 size: 24,
               ),

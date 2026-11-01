@@ -1,4 +1,6 @@
 import 'package:readability/readability.dart' as readability;
+import 'package:ireader/core/models/app_failure.dart';
+import 'package:ireader/core/models/service_result.dart';
 
 class ExtractedArticle {
   final String title;
@@ -15,19 +17,32 @@ class ExtractedArticle {
 }
 
 class ArticleService {
-  Future<ExtractedArticle?> extractFromUrl(String url) async {
+  Future<ServiceResult<ExtractedArticle>> extractFromUrl(String url) async {
     try {
       final result = await readability.parseAsync(url);
-      
-      return ExtractedArticle(
+
+      final article = ExtractedArticle(
         title: result.title ?? 'Untitled',
         content: result.textContent ?? '',
         excerpt: result.excerpt,
         siteName: result.siteName,
       );
+      if (article.content.trim().isEmpty) {
+        return ServiceResult.error(
+          const AppFailure(
+            AppFailureType.parsing,
+            'Could not extract main content from this URL.',
+          ),
+        );
+      }
+      return ServiceResult.success(article);
     } catch (e) {
-      // Error handling managed by Mixin
+      return ServiceResult.error(
+        AppFailure(
+          AppFailureType.network,
+          'Network or parsing error: $e',
+        ),
+      );
     }
-    return null;
   }
 }

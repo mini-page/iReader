@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/services/secure_storage_service.dart';
+import 'package:ireader/core/providers/app_providers.dart';
 import '../../../shared/models/app_settings.dart';
-import '../../reader/presentation/reader_controller.dart';
+import '../../bookmarks/presentation/bookmarks_provider.dart';
+import '../../home/data/sessions_provider.dart';
 import 'settings_controller.dart';
+import 'support_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -230,6 +233,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 32),
           _buildSectionHeader('ABOUT', sectionTitleColor),
           _buildAboutCard(onSurface, isDark),
+          const SizedBox(height: 32),
+          _buildSectionHeader('DEVELOPER', sectionTitleColor),
+          _buildDeveloperCard(onSurface, isDark),
           const SizedBox(height: 48),
           Center(
             child: Text(
@@ -336,22 +342,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         color: isDark
             ? Colors.white.withValues(alpha: 0.03)
             : Colors.black.withValues(alpha: 0.02));
-  }
-
-  Widget _buildCircleButton(
-      BuildContext context, IconData icon, VoidCallback onTap, bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.1)
-            : Colors.black.withValues(alpha: 0.05),
-        shape: BoxShape.circle,
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: isDark ? Colors.white : Colors.black, size: 20),
-        onPressed: onTap,
-      ),
-    );
   }
 
   Widget _buildModernSlider({
@@ -773,6 +763,183 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _buildDeveloperCard(Color onSurface, bool isDark) {
+    final cardColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: isDark
+                ? []
+                : [
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 15,
+                        offset: const Offset(0, 8))
+                  ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => Navigator.push(
+                context, MaterialPageRoute(builder: (_) => const SupportScreen())),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: const Color(0xFFFF3B3B).withValues(alpha: 0.2),
+                              width: 2),
+                          image: const DecorationImage(
+                            image: AssetImage('assets/images/galley/Lovey_0.jpg'),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Raghavan S',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 18)),
+                            Text('Independent Developer',
+                                style: TextStyle(color: Colors.white60, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      Icon(LucideIcons.heart,
+                          color: const Color(0xFFFF3B3B).withValues(alpha: 0.5),
+                          size: 20),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Built with passion to solve reading friction. My goal is to make knowledge accessible through cognitive technology.',
+                    style: TextStyle(
+                        color: onSurface.withValues(alpha: 0.6),
+                        fontSize: 13,
+                        height: 1.5),
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF3B3B).withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: const Color(0xFFFF3B3B).withValues(alpha: 0.1)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(LucideIcons.qr_code, color: Color(0xFFFF3B3B), size: 16),
+                        SizedBox(width: 12),
+                        Text('Support the Project',
+                            style: TextStyle(
+                                color: Color(0xFFFF3B3B),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13)),
+                        Spacer(),
+                        Icon(LucideIcons.chevron_right,
+                            color: Color(0xFFFF3B3B), size: 16),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        SizedBox(
+          height: 80,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            children: [
+              _buildSocialIcon('Mail', LucideIcons.mail,
+                  'mailto:raghavans5711+iReaderSupport@gmail.com', onSurface, isDark),
+              _buildSocialIcon('GitHub', LucideIcons.code,
+                  'https://github.com/mini-page/', onSurface, isDark),
+              _buildSocialIcon('LinkedIn', LucideIcons.briefcase,
+                  'https://www.linkedin.com/in/ug5711', onSurface, isDark),
+              _buildSocialIcon('X', LucideIcons.message_circle, 'https://x.com/ug_5711',
+                  onSurface, isDark),
+              _buildSocialIcon('Instagram', LucideIcons.camera,
+                  'https://www.instagram.com/ug_5711', onSurface, isDark),
+              _buildSocialIcon('Telegram', LucideIcons.send, 'http://t.me/@ug_5711',
+                  onSurface, isDark),
+              _buildSocialIcon('Reddit', LucideIcons.app_window,
+                  'https://www.reddit.com/user/Raghavs5711/', onSurface, isDark),
+              _buildSocialIcon('Threads', LucideIcons.at_sign,
+                  'https://www.threads.com/@ug_5711', onSurface, isDark),
+              _buildSocialIcon('YouTube', LucideIcons.video,
+                  'https://www.youtube.com/@ug5711', onSurface, isDark),
+              _buildSocialIcon('Cal', LucideIcons.calendar, 'https://cal.com/ug5711',
+                  onSurface, isDark),
+              _buildSocialIcon('CodePen', LucideIcons.palette,
+                  'https://codepen.io/raghav5711', onSurface, isDark),
+              _buildSocialIcon('TryHackMe', LucideIcons.terminal,
+                  'https://tryhackme.com/p/Raghav5711', onSurface, isDark),
+              _buildSocialIcon('HackTheBox', LucideIcons.monitor,
+                  'https://account.hackthebox.com/ug5711', onSurface, isDark),
+              _buildSocialIcon('LetsDefend', LucideIcons.shield,
+                  'https://app.letsdefend.io/user/ug5711', onSurface, isDark),
+              _buildSocialIcon('Snapchat', LucideIcons.ghost,
+                  'https://www.snapchat.com/add/rg_5711', onSurface, isDark),
+              _buildSocialIcon('Pinterest', LucideIcons.pin,
+                  'https://in.pinterest.com/ug_5711/', onSurface, isDark),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSocialIcon(
+      String label, IconData icon, String url, Color onSurface, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 16),
+      child: GestureDetector(
+        onTap: () => launchUrl(Uri.parse(url)),
+        child: Column(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : Colors.black.withValues(alpha: 0.03),
+                border: Border.all(color: onSurface.withValues(alpha: 0.05)),
+              ),
+              child: Icon(icon, size: 20, color: onSurface.withValues(alpha: 0.7)),
+            ),
+            const SizedBox(height: 6),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 10,
+                    color: onSurface.withValues(alpha: 0.4),
+                    fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showResetDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
@@ -795,7 +962,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     borderRadius: BorderRadius.circular(12))),
             onPressed: () async {
               await ref.read(sessionRepositoryProvider).clearAll();
+              await ref.read(bookmarkRepositoryProvider).clearAll();
+              await ref.read(statsRepositoryProvider).clear();
+              await ref.read(secureStorageProvider).deleteAll();
               await ref.read(settingsProvider.notifier).resetAll();
+              ref.invalidate(sessionsProvider);
+              ref.invalidate(bookmarksProvider);
               if (context.mounted) {
                 Navigator.pop(context);
                 context.go('/splash');
@@ -830,6 +1002,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     borderRadius: BorderRadius.circular(12))),
             onPressed: () async {
               await ref.read(sessionRepositoryProvider).clearAll();
+              await ref.read(bookmarkRepositoryProvider).clearAll();
+              ref.invalidate(sessionsProvider);
+              ref.invalidate(bookmarksProvider);
               if (context.mounted) Navigator.pop(context);
             },
             child: const Text('Clear All'),

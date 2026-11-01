@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
+import 'package:ireader/core/providers/app_providers.dart';
 
 import '../../reader/presentation/reader_controller.dart';
 import '../../settings/presentation/settings_controller.dart';
@@ -73,6 +73,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
     final settings = ref.read(settingsProvider);
+    final sessionRepo = ref.read(sessionRepositoryProvider);
 
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -89,21 +90,31 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     }
 
     if (widget.sessionId != null) {
-      await ref
-          .read(sessionRepositoryProvider)
-          .update(widget.sessionId!, title: title, content: content);
+      await sessionRepo.update(widget.sessionId!, title: title, content: content);
     }
 
     if (startReading) {
-      await ref
-          .read(readerProvider.notifier)
-          .loadText(title, content, wpm: settings.defaultWpm);
+      final sessionId = widget.sessionId ??
+          (await sessionRepo.create(
+            title: title,
+            content: content,
+            wpm: settings.defaultWpm,
+          ))
+              .id;
+      await ref.read(readerProvider.notifier).loadText(
+            title,
+            content,
+            sessionId: sessionId,
+            wpm: settings.defaultWpm,
+          );
       if (mounted) context.pushReplacement('/reader');
     } else {
       if (widget.sessionId == null) {
-        await ref
-            .read(sessionRepositoryProvider)
-            .create(title: title, content: content, wpm: settings.defaultWpm);
+        await sessionRepo.create(
+          title: title,
+          content: content,
+          wpm: settings.defaultWpm,
+        );
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -258,7 +269,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
             const Text('AI REFINEMENT', style: TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
             const SizedBox(height: 16),
             _AiActionTile(
-              icon: LucideIcons.fileText,
+              icon: LucideIcons.file_text,
               title: 'Summarize',
               subtitle: 'Condense before reading',
               onTap: () {
@@ -267,7 +278,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
               },
             ),
             _AiActionTile(
-              icon: LucideIcons.wand2,
+              icon: LucideIcons.wand,
               title: 'Simplify',
               subtitle: 'Easy mode reading',
               onTap: () {

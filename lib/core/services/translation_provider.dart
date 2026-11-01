@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mlkit_translation/google_mlkit_translation.dart';
-import '../services/translation_service.dart';
+import 'package:ireader/core/models/service_result.dart';
+import 'package:ireader/core/providers/app_providers.dart';
 
-final translationServiceProvider = Provider((ref) => TranslationService());
-
-final translationProvider = FutureProvider.family<String, String>((ref, text) async {
+final translationProvider =
+    FutureProvider.family<ServiceResult<String>, String>((ref, text) async {
   final service = ref.read(translationServiceProvider);
   return service.translate(text);
 });

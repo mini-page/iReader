@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import '../../home/presentation/home_screen.dart';
 import '../../settings/presentation/settings_screen.dart';
 import '../../stats/presentation/stats_screen.dart';
@@ -78,15 +77,15 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
               showUnselectedLabels: settings.showNavLabels,
               items: const [
                 BottomNavigationBarItem(
-                  icon: Icon(LucideIcons.home),
+                  icon: Icon(LucideIcons.house),
                   label: 'Home',
                 ),
                 BottomNavigationBarItem(
-                  icon: Icon(LucideIcons.bookOpen),
+                  icon: Icon(LucideIcons.book_open),
                   label: 'Library',
                 ),
                 BottomNavigationBarItem(
-                  icon: Icon(LucideIcons.barChart2),
+                  icon: Icon(LucideIcons.chart_bar_increasing),
                   label: 'Stats',
                 ),
                 BottomNavigationBarItem(

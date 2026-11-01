@@ -32,6 +32,7 @@ class SettingsController extends Notifier<AppSettings> {
       hasRunDemo: prefs.getBool('hasRunDemo') ?? state.hasRunDemo,
       hideStatusBar: hideStatusBar,
       showNavLabels: prefs.getBool('showNavLabels') ?? state.showNavLabels,
+      isLoaded: true,
     );
     _applySystemUi(hideStatusBar);
   }
@@ -77,7 +78,7 @@ class SettingsController extends Notifier<AppSettings> {
   Future<void> resetAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
-    state = AppSettings.initial();
+    state = AppSettings.initial().copyWith(isLoaded: true);
     _applySystemUi(state.hideStatusBar);
   }
 }

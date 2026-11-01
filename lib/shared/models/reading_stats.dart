@@ -1,23 +1,14 @@
-import 'package:hive/hive.dart';
-
-@HiveType(typeId: 2)
 class ReadingStats {
-  @HiveField(0)
   final int totalWordsRead;
   
-  @HiveField(1)
   final int totalTimeSeconds;
   
-  @HiveField(2)
   final int sessionsCount;
   
-  @HiveField(3)
   final double averageWpm;
   
-  @HiveField(4)
   final DateTime lastSessionDate;
   
-  @HiveField(5)
   final Map<String, int> dailyWords; // "yyyy-MM-dd" -> words
 
   const ReadingStats({

@@ -1,4 +1,3 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../shared/models/reading_stats.dart';
 
@@ -7,10 +6,6 @@ class StatsRepository {
   static const String _key = 'reading_stats';
 
   Future<void> init() async {
-    if (!Hive.isAdapterRegistered(2)) {
-      // Manual registration if not using build_runner yet
-      // In a real project, we'd use ReadingStatsAdapter()
-    }
     await Hive.openBox(_boxName);
   }
 
@@ -19,7 +14,6 @@ class StatsRepository {
     final data = box.get(_key);
     if (data == null) return ReadingStats.initial();
     
-    // Fallback for manual data mapping if adapter isn't generated
     if (data is Map) {
       return ReadingStats(
         totalWordsRead: data['totalWordsRead'] ?? 0,
@@ -35,7 +29,6 @@ class StatsRepository {
 
   Future<void> saveStats(ReadingStats stats) async {
     final box = Hive.box(_boxName);
-    // Store as map for flexibility if adapter is missing
     await box.put(_key, {
       'totalWordsRead': stats.totalWordsRead,
       'totalTimeSeconds': stats.totalTimeSeconds,
@@ -67,6 +60,8 @@ class StatsRepository {
       dailyWords: newDaily,
     ));
   }
-}
 
-final statsRepositoryProvider = Provider((ref) => StatsRepository());
+  Future<void> clear() async {
+    await saveStats(ReadingStats.initial());
+  }
+}

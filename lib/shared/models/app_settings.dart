@@ -13,6 +13,7 @@ class AppSettings {
   final bool hasRunDemo;
   final bool hideStatusBar;
   final bool showNavLabels;
+  final bool isLoaded;
 
   const AppSettings({
     this.defaultWpm = 350,
@@ -27,6 +28,7 @@ class AppSettings {
     this.hasRunDemo = false,
     this.hideStatusBar = false,
     this.showNavLabels = true,
+    this.isLoaded = false,
   });
 
   factory AppSettings.initial() => const AppSettings();
@@ -44,6 +46,7 @@ class AppSettings {
     bool? hasRunDemo,
     bool? hideStatusBar,
     bool? showNavLabels,
+    bool? isLoaded,
   }) =>
       AppSettings(
         defaultWpm: defaultWpm ?? this.defaultWpm,
@@ -59,5 +62,6 @@ class AppSettings {
         hasRunDemo: hasRunDemo ?? this.hasRunDemo,
         hideStatusBar: hideStatusBar ?? this.hideStatusBar,
         showNavLabels: showNavLabels ?? this.showNavLabels,
+        isLoaded: isLoaded ?? this.isLoaded,
       );
 }

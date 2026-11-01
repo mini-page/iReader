@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:go_router/go_router.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:ireader/core/providers/app_providers.dart';
 
 import '../domain/bookmark.dart';
 import '../presentation/bookmarks_provider.dart';
-import 'package:red_reader/core/services/dictionary_provider.dart';
-import 'package:red_reader/features/reader/presentation/reader_controller.dart';
+import 'package:ireader/core/services/dictionary_provider.dart';
+import 'package:ireader/features/reader/presentation/reader_controller.dart';
 
 class BookmarkSessionScreen extends ConsumerWidget {
   final String sessionId;
@@ -28,7 +29,7 @@ class BookmarkSessionScreen extends ConsumerWidget {
         elevation: 0,
         centerTitle: true, // Center the header
         leading: IconButton(
-          icon: Icon(LucideIcons.arrowLeft, color: onSurface),
+          icon: Icon(LucideIcons.arrow_left, color: onSurface),
           onPressed: () => context.pop(),
         ),
         title: Text(
@@ -79,9 +80,7 @@ class _BookmarkDetailCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final wordInfoAsync = ref.watch(wordLookupProvider(bookmark.word));
-    
-    // Note: Creating a temporary AudioPlayer for simple preview. 
-    final audioPlayer = AudioPlayer();
+    final audioPlayer = ref.read(audioPlayerProvider);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -93,63 +92,92 @@ class _BookmarkDetailCard extends ConsumerWidget {
         boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 20, offset: const Offset(0, 8))],
       ),
       child: wordInfoAsync.when(
-        data: (info) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      bookmark.word,
-                      style: GoogleFonts.lexend(
-                        color: onSurface,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (info?.phonetic != null)
+        data: (result) {
+          final info = result.isSuccess ? result.requireData : null;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        info!.phonetic!,
-                        style: TextStyle(color: const Color(0xFFFF3B3B), fontSize: 14, fontWeight: FontWeight.w500),
+                        bookmark.word,
+                        style: GoogleFonts.lexend(
+                          color: onSurface,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                  ],
+                      if (info?.phonetic != null)
+                        Text(
+                          info!.phonetic!,
+                          style: const TextStyle(
+                            color: Color(0xFFFF3B3B),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                    ],
+                  ),
+                  _buildActionIcon(() async {
+                    if (info?.audioUrl != null) {
+                      await audioPlayer.play(UrlSource(info!.audioUrl!));
+                    } else {
+                      await ref.read(readerProvider.notifier).speakWords(bookmark.word);
+                    }
+                  }, icon: LucideIcons.volume_2, onSurface: onSurface),
+                ],
+              ),
+              const SizedBox(height: 20),
+              if (info != null && info.meanings.isNotEmpty) ...[
+                _buildLearningField(
+                  'Meaning',
+                  info.meanings[0].definitions[0].definition,
+                  onSurface,
                 ),
-                _buildActionIcon(LucideIcons.volume2, () async {
-                  if (info?.audioUrl != null) {
-                    await audioPlayer.play(UrlSource(info!.audioUrl!));
-                  } else {
-                    ref.read(readerProvider.notifier).speakWords(bookmark.word);
-                  }
-                }, onSurface: onSurface),
-              ],
-            ),
-            const SizedBox(height: 20),
-            if (info != null && info.meanings.isNotEmpty) ...[
-              _buildLearningField('Meaning', info.meanings[0].definitions[0].definition, onSurface),
-              const SizedBox(height: 16),
-              if (info.meanings[0].synonyms.isNotEmpty)
-                _buildLearningField('Synonyms', info.meanings[0].synonyms.take(3).join(', '), onSurface),
-              const SizedBox(height: 16),
-              if (info.meanings[0].definitions[0].example != null)
-                _buildLearningField('Example', info.meanings[0].definitions[0].example!, onSurface),
-            ] else
-              Text('No detailed info found for this word.', style: TextStyle(color: onSurface.withValues(alpha: 0.3), fontSize: 13)),
-            
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                _buildLearningAction(LucideIcons.bookOpen, 'Usage', onSurface),
-                const Spacer(),
-                _buildActionIcon(LucideIcons.trash2, () {
-                  ref.read(bookmarksProvider.notifier).deleteBookmark(bookmark.id);
-                }, color: const Color(0xFFFF3B3B), onSurface: onSurface),
-              ],
-            ),
-          ],
-        ),
+                const SizedBox(height: 16),
+                if (info.meanings[0].synonyms.isNotEmpty)
+                  _buildLearningField(
+                    'Synonyms',
+                    info.meanings[0].synonyms.take(3).join(', '),
+                    onSurface,
+                  ),
+                const SizedBox(height: 16),
+                if (info.meanings[0].definitions[0].example != null)
+                  _buildLearningField(
+                    'Example',
+                    info.meanings[0].definitions[0].example!,
+                    onSurface,
+                  ),
+              ] else
+                Text(
+                  result.failure?.message ?? 'No detailed info found for this word.',
+                  style: TextStyle(
+                    color: onSurface.withValues(alpha: 0.3),
+                    fontSize: 13,
+                  ),
+                ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  _buildLearningAction(LucideIcons.book_open, 'Usage', onSurface),
+                  const Spacer(),
+                  _buildActionIcon(
+                    () {
+                      ref.read(bookmarksProvider.notifier).deleteBookmark(bookmark.id);
+                    },
+                    icon: LucideIcons.trash_2,
+                    color: const Color(0xFFFF3B3B),
+                    onSurface: onSurface,
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
         loading: () => const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
         error: (e, _) => Text('Error loading word details', style: TextStyle(color: onSurface.withValues(alpha: 0.3))),
       ),
@@ -199,7 +227,12 @@ class _BookmarkDetailCard extends ConsumerWidget {
     );
   }
 
-  Widget _buildActionIcon(IconData icon, VoidCallback onTap, {Color? color, required Color onSurface}) {
+  Widget _buildActionIcon(
+    VoidCallback onTap, {
+    required IconData icon,
+    Color? color,
+    required Color onSurface,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(

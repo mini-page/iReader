@@ -4,12 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'package:red_reader/features/settings/presentation/settings_controller.dart';
-import 'package:red_reader/features/reader/presentation/reader_controller.dart';
-import 'package:red_reader/features/reader/presentation/widgets/reader_layout.dart';
-import 'package:red_reader/features/reader/presentation/widgets/reader_engine.dart';
-import 'package:red_reader/features/reader/presentation/widgets/quick_settings_popup.dart';
-import 'package:red_reader/core/services/ai_service.dart';
+import 'package:ireader/features/settings/presentation/settings_controller.dart';
+import 'package:ireader/features/reader/presentation/reader_controller.dart';
+import 'package:ireader/features/reader/presentation/widgets/reader_layout.dart';
+import 'package:ireader/features/reader/presentation/widgets/reader_engine.dart';
+import 'package:ireader/features/reader/presentation/widgets/quick_settings_popup.dart';
+import 'package:ireader/core/services/ai_service.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
   const ReaderScreen({super.key});
@@ -157,7 +157,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                       ),
                       const SizedBox(height: 24),
                       Text(
-                        'AI IS THINKING...',
+                        'PROCESSING TEXT...',
                         style: GoogleFonts.lexend(
                           color: const Color(0xFFFF3B3B),
                           fontWeight: FontWeight.bold,
@@ -166,7 +166,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Transforming your reading experience',
+                        'Applying the selected transformation',
                         style: TextStyle(color: Colors.white60, fontSize: 12),
                       ),
                     ],

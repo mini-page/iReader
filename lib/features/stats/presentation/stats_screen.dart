@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
-import '../data/stats_repository.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
+import 'package:ireader/core/providers/app_providers.dart';
 import '../../../shared/models/reading_stats.dart';
 
 class StatsScreen extends ConsumerWidget {
@@ -39,7 +39,7 @@ class StatsScreen extends ConsumerWidget {
           const SizedBox(height: 24),
           _buildActivityCard(stats, onSurface, isDark),
           const SizedBox(height: 24),
-          _buildStatRow('Total Words', stats.totalWordsRead.toString(), LucideIcons.bookOpen, onSurface),
+          _buildStatRow('Total Words', stats.totalWordsRead.toString(), LucideIcons.book_open, onSurface),
           _buildStatRow('Sessions', stats.sessionsCount.toString(), LucideIcons.history, onSurface),
           _buildStatRow('Reading Time', '${(stats.totalTimeSeconds / 60).toStringAsFixed(1)} mins', LucideIcons.clock, onSurface),
         ],
@@ -54,20 +54,20 @@ class StatsScreen extends ConsumerWidget {
         color: const Color(0xFFFF3B3B),
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
-          BoxShadow(color: const Color(0xFFFF3B3B).withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))
+          BoxShadow(color: const Color(0xFFFF3B3B).withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 10))
         ],
       ),
       child: Column(
         children: [
           Text('TOTAL WORDS READ', 
-            style: GoogleFonts.lexend(color: Colors.white.withOpacity(0.7), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+            style: GoogleFonts.lexend(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
           const SizedBox(height: 8),
           Text(stats.totalWordsRead.toString(), 
             style: GoogleFonts.lexend(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
             child: Text('Level: Knowledge Seeker', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
           ),
         ],
@@ -104,7 +104,7 @@ class StatsScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('DAILY ACTIVITY', style: GoogleFonts.lexend(fontSize: 12, fontWeight: FontWeight.bold, color: onSurface.withOpacity(0.3), letterSpacing: 1.2)),
+          Text('DAILY ACTIVITY', style: GoogleFonts.lexend(fontSize: 12, fontWeight: FontWeight.bold, color: onSurface.withValues(alpha: 0.3), letterSpacing: 1.2)),
           const SizedBox(height: 20),
           SizedBox(
             height: 100,
@@ -125,12 +125,12 @@ class StatsScreen extends ConsumerWidget {
                       width: 30,
                       height: 70 * heightFactor,
                       decoration: BoxDecoration(
-                        color: index == 6 ? const Color(0xFFFF3B3B) : const Color(0xFFFF3B3B).withOpacity(0.2),
+                        color: index == 6 ? const Color(0xFFFF3B3B) : const Color(0xFFFF3B3B).withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(dateStr.substring(8), style: TextStyle(color: onSurface.withOpacity(0.3), fontSize: 10)),
+                    Text(dateStr.substring(8), style: TextStyle(color: onSurface.withValues(alpha: 0.3), fontSize: 10)),
                   ],
                 );
               }),
@@ -148,11 +148,11 @@ class StatsScreen extends ConsumerWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: onSurface.withOpacity(0.05), shape: BoxShape.circle),
-            child: Icon(icon, color: onSurface.withOpacity(0.5), size: 18),
+            decoration: BoxDecoration(color: onSurface.withValues(alpha: 0.05), shape: BoxShape.circle),
+            child: Icon(icon, color: onSurface.withValues(alpha: 0.5), size: 18),
           ),
           const SizedBox(width: 16),
-          Text(label, style: TextStyle(color: onSurface.withOpacity(0.6), fontWeight: FontWeight.w500)),
+          Text(label, style: TextStyle(color: onSurface.withValues(alpha: 0.6), fontWeight: FontWeight.w500)),
           const Spacer(),
           Text(value, style: GoogleFonts.lexend(color: onSurface, fontWeight: FontWeight.bold)),
         ],

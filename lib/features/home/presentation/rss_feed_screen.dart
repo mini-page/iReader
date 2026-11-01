@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:go_router/go_router.dart';
-import 'package:red_reader/core/services/rss_provider.dart';
-import 'package:red_reader/core/services/rss_service.dart';
-import 'package:red_reader/shared/widgets/skeleton_loaders.dart';
-import 'package:red_reader/shared/widgets/reading_action_mixin.dart';
-import 'package:red_reader/features/home/presentation/widgets/home_widgets.dart';
+import 'package:ireader/core/services/rss_provider.dart';
+import 'package:ireader/core/services/rss_service.dart';
+import 'package:ireader/shared/widgets/skeleton_loaders.dart';
+import 'package:ireader/shared/widgets/reading_action_mixin.dart';
+import 'package:ireader/features/home/presentation/widgets/home_widgets.dart';
+import 'package:ireader/shared/utils/text_utils.dart';
 
 class RssFeedScreen extends ConsumerStatefulWidget {
   final String feedUrl;
@@ -36,7 +37,7 @@ class _RssFeedScreenState extends ConsumerState<RssFeedScreen> with ReadingActio
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(LucideIcons.arrowLeft, color: onSurface),
+          icon: Icon(LucideIcons.arrow_left, color: onSurface),
           onPressed: () => context.pop(),
         ),
         title: Text(
@@ -52,37 +53,53 @@ class _RssFeedScreenState extends ConsumerState<RssFeedScreen> with ReadingActio
       body: Stack(
         children: [
           rssAsync.when(
-            data: (items) => ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final item = items[index];
-                return _buildRssItem(item, onSurface, isDark);
-              },
-            ),
+            data: (result) {
+              if (!result.isSuccess) {
+                return _buildErrorState(
+                  onSurface,
+                  result.failure?.message ?? 'Network error or invalid feed.',
+                );
+              }
+
+              final items = result.requireData;
+              return ListView.builder(
+                padding: const EdgeInsets.all(20),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  return _buildRssItem(item, onSurface, isDark);
+                },
+              );
+            },
             loading: () => Padding(
               padding: const EdgeInsets.all(20),
               child: SkeletonList(isDark: isDark),
             ),
-            error: (e, _) => Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(LucideIcons.wifiOff, color: onSurface.withValues(alpha: 0.2), size: 48),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Network error or invalid feed.',
-                    style: TextStyle(color: onSurface.withValues(alpha: 0.4)),
-                  ),
-                  TextButton(
-                    onPressed: () => ref.invalidate(rssFeedProvider(widget.feedUrl)),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            ),
+            error: (e, _) => _buildErrorState(onSurface, 'Network error or invalid feed.'),
           ),
           if (isProcessing) ProcessingOverlay(label: processingLabel),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(Color onSurface, String message) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(LucideIcons.wifi_off,
+              color: onSurface.withValues(alpha: 0.2), size: 48),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: TextStyle(color: onSurface.withValues(alpha: 0.4)),
+            textAlign: TextAlign.center,
+          ),
+          TextButton(
+            onPressed: () => ref.invalidate(rssFeedProvider(widget.feedUrl)),
+            child: const Text('Retry'),
+          ),
         ],
       ),
     );
@@ -133,7 +150,7 @@ class _RssFeedScreenState extends ConsumerState<RssFeedScreen> with ReadingActio
               const SizedBox(height: 8),
               if (item.description != null)
                 Text(
-                  _stripHtml(item.description!),
+                  stripHtml(item.description!),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -163,11 +180,6 @@ class _RssFeedScreenState extends ConsumerState<RssFeedScreen> with ReadingActio
         ),
       ),
     );
-  }
-
-  String _stripHtml(String html) {
-    RegExp exp = RegExp(r"<[^>]*>", multiLine: true, caseSensitive: true);
-    return html.replaceAll(exp, '').trim();
   }
 
   String _formatDate(DateTime? date) {

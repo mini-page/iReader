@@ -5,15 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 
-import 'package:red_reader/core/constants/demo_text.dart';
-import 'package:red_reader/features/reader/presentation/reader_controller.dart';
-import 'package:red_reader/features/settings/presentation/settings_controller.dart';
-import 'package:red_reader/features/home/data/sessions_provider.dart';
-import 'package:red_reader/features/home/presentation/widgets/home_widgets.dart';
-import 'package:red_reader/shared/widgets/reading_action_mixin.dart';
-import 'package:red_reader/features/bookmarks/presentation/widgets/bookmarks_section.dart';
+import 'package:ireader/core/constants/demo_text.dart';
+import 'package:ireader/features/reader/presentation/reader_controller.dart';
+import 'package:ireader/features/settings/presentation/settings_controller.dart';
+import 'package:ireader/features/home/data/sessions_provider.dart';
+import 'package:ireader/features/home/presentation/widgets/home_widgets.dart';
+import 'package:ireader/shared/widgets/reading_action_mixin.dart';
+import 'package:ireader/features/bookmarks/presentation/widgets/bookmarks_section.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -77,9 +77,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with ReadingActionMixin
                   ),
                 ],
               ),
-              SliverToBoxAdapter(
-                child: _buildActionSlider(onSurface, isDark),
-              ),
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                 sliver: sessionsAsync.when(
@@ -92,7 +89,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with ReadingActionMixin
                           isDark: isDark,
                           onPlay: () async {
                             await ref.read(readerProvider.notifier).loadSession(sessions.first);
-                            if (mounted) {
+                            if (context.mounted) {
                               await context.push('/reader');
                               WidgetsBinding.instance.addPostFrameCallback((_) {
                                 if (mounted) {
@@ -100,9 +97,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with ReadingActionMixin
                                 }
                               });
                             }
-                          },                        ),
+                          },
+                        ),
                         const SizedBox(height: 32),
                       ],
+                      _buildActionSlider(onSurface, isDark),
+                      const SizedBox(height: 32),
                       const BookmarksSection(),
                       const SizedBox(height: 32),
                       if (!settings.hasRunDemo) ...[
@@ -138,23 +138,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with ReadingActionMixin
 
   Widget _buildActionSlider(Color onSurface, bool isDark) {
     return SizedBox(
-      height: 180,
+      height: 110,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        clipBehavior: Clip.none,
         children: [
-          HomeActionCard(title: 'Paste text', subtitle: 'Direct edit', icon: LucideIcons.clipboardSignature, iconBg: const Color(0xFFFF3B3B), onSurface: onSurface, isDark: isDark, onTap: () => context.push('/preview', extra: {'title': '', 'content': '', 'id': null})),
-          const SizedBox(width: 16),
-          HomeActionCard(title: 'Upload file', subtitle: 'PDF, DOCX, TXT', icon: LucideIcons.fileUp, iconBg: onSurface.withValues(alpha: 0.1), onSurface: onSurface, isDark: isDark, onTap: pickFiles),
-          const SizedBox(width: 16),
-          HomeActionCard(title: 'AI Topic', subtitle: 'Generate article', icon: LucideIcons.sparkles, iconBg: const Color(0xFFFF3B3B), onSurface: onSurface, isDark: isDark, onTap: showTopicDialog),
-          const SizedBox(width: 16),
-          HomeActionCard(title: 'Wikipedia', subtitle: 'Fetch article', icon: LucideIcons.globe, iconBg: onSurface.withValues(alpha: 0.1), onSurface: onSurface, isDark: isDark, onTap: showWikiDialog),
-          const SizedBox(width: 16),
-          HomeActionCard(title: 'URL Reader', subtitle: 'Extract text', icon: LucideIcons.link, iconBg: onSurface.withValues(alpha: 0.1), onSurface: onSurface, isDark: isDark, onTap: showUrlDialog),
-          const SizedBox(width: 16),
-          HomeActionCard(title: 'Random', subtitle: 'Unread discovery', icon: LucideIcons.shuffle, iconBg: onSurface.withValues(alpha: 0.1), onSurface: onSurface, isDark: isDark, onTap: _pickRandomUnread),
-          const SizedBox(width: 20),
+          HomeActionCard(title: 'Paste', subtitle: 'Text', icon: LucideIcons.clipboard_paste, iconBg: const Color(0xFFFF3B3B), onSurface: onSurface, isDark: isDark, onTap: () => context.push('/preview', extra: {'title': '', 'content': '', 'id': null})),
+          const SizedBox(width: 12),
+          HomeActionCard(title: 'Upload', subtitle: 'Files', icon: LucideIcons.file_up, iconBg: onSurface.withValues(alpha: 0.1), onSurface: onSurface, isDark: isDark, onTap: pickFiles),
+          const SizedBox(width: 12),
+          HomeActionCard(title: 'Wikis', subtitle: 'Search', icon: LucideIcons.globe, iconBg: onSurface.withValues(alpha: 0.1), onSurface: onSurface, isDark: isDark, onTap: showWikiDialog),
+          const SizedBox(width: 12),
+          HomeActionCard(title: 'URL', subtitle: 'Extract', icon: LucideIcons.link, iconBg: onSurface.withValues(alpha: 0.1), onSurface: onSurface, isDark: isDark, onTap: showUrlDialog),
+          const SizedBox(width: 12),
+          HomeActionCard(title: 'AI Topic', subtitle: 'Generate', icon: LucideIcons.sparkles, iconBg: const Color(0xFFFF3B3B), onSurface: onSurface, isDark: isDark, onTap: showTopicDialog),
+          const SizedBox(width: 12),
+          HomeActionCard(title: 'Random', subtitle: 'Unread', icon: LucideIcons.shuffle, iconBg: onSurface.withValues(alpha: 0.1), onSurface: onSurface, isDark: isDark, onTap: _pickRandomUnread),
         ],
       ),
     );

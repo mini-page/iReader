@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:ireader/core/models/app_failure.dart';
+import 'package:ireader/core/models/service_result.dart';
 
 class DictionaryEntry {
   final String word;
@@ -76,18 +78,28 @@ class Definition {
 class DictionaryService {
   static const _baseUrl = 'https://api.dictionaryapi.dev/api/v2/entries/en';
 
-  Future<DictionaryEntry?> lookup(String word) async {
+  Future<ServiceResult<DictionaryEntry>> lookup(String word) async {
     try {
       final response = await http.get(Uri.parse('$_baseUrl/$word'));
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
         if (data.isNotEmpty) {
-          return DictionaryEntry.fromJson(data[0]);
+          return ServiceResult.success(DictionaryEntry.fromJson(data[0]));
         }
       }
+      return ServiceResult.error(
+        AppFailure(
+          AppFailureType.network,
+          'No dictionary entry found for "$word".',
+        ),
+      );
     } catch (e) {
-      // Log or handle error
+      return ServiceResult.error(
+        AppFailure(
+          AppFailureType.network,
+          'Dictionary lookup failed: $e',
+        ),
+      );
     }
-    return null;
   }
 }

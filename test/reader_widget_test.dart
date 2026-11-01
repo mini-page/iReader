@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:red_reader/features/reader/presentation/reader_screen.dart';
+import 'package:ireader/features/reader/presentation/reader_screen.dart';
 
 void main() {
   testWidgets('reader screen renders controls', (tester) async {

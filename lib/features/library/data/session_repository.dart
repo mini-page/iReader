@@ -15,7 +15,7 @@ class SessionRepository {
     await box.put(session.id, session.toJson());
   }
 
-  Future<void> create({
+  Future<Session> create({
     required String title,
     required String content,
     required int wpm,
@@ -29,6 +29,7 @@ class SessionRepository {
       updatedAt: DateTime.now(),
     );
     await save(session);
+    return session;
   }
 
   Future<void> update(

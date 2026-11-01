@@ -1,9 +1,15 @@
 import 'package:google_mlkit_translation/google_mlkit_translation.dart';
+import 'package:ireader/core/models/app_failure.dart';
+import 'package:ireader/core/models/service_result.dart';
 
 class TranslationService {
   final _modelManager = OnDeviceTranslatorModelManager();
 
-  Future<String> translate(String text, {TranslateLanguage source = TranslateLanguage.english, TranslateLanguage target = TranslateLanguage.spanish}) async {
+  Future<ServiceResult<String>> translate(
+    String text, {
+    TranslateLanguage source = TranslateLanguage.english,
+    TranslateLanguage target = TranslateLanguage.spanish,
+  }) async {
     final onDeviceTranslator = OnDeviceTranslator(
       sourceLanguage: source,
       targetLanguage: target,
@@ -19,9 +25,14 @@ class TranslationService {
       if (!isTargetDownloaded) await _modelManager.downloadModel(target.bcpCode);
 
       final String response = await onDeviceTranslator.translateText(text);
-      return response;
+      return ServiceResult.success(response);
     } catch (e) {
-      return "Translation Error: $e";
+      return ServiceResult.error(
+        AppFailure(
+          AppFailureType.unavailable,
+          'Translation failed: $e',
+        ),
+      );
     } finally {
       onDeviceTranslator.close();
     }
